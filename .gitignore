@@ -1,5 +1,6 @@
-
-
+.venv
+.dvc
 *.pyc
 __pycache__/
+
 
