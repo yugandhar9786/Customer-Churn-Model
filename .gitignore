@@ -1,6 +1,6 @@
-.venv
+.venv/
 .dvc
 *.pyc
 __pycache__/
-
+model/
 
