@@ -1,0 +1,60 @@
+name: MLOps Pipeline for customer churn model
+on:
+  push:
+    branches: [main]
+env:
+    AWS_REGION: us-east-1
+    s3_BUCKET: churn-model-bucket-cicd-yuge-demo
+
+jobs:
+    train-and-deplo:
+      runs-on: ubuntu-latest
+      permissions:
+        contents: write
+    
+      steps:
+      - name: checkout code
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+        
+      - name: setup python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: install dependencies
+        run: |
+          python3 -m pip install -r requirements.txt
+    
+      - name: generate data
+        run: |
+          python3 generate_data.py
+
+      - name: train model
+        run: |
+          python3 train.py
+
+      - name: configure aws credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION}}
+
+      - name: push model to s3 bucket directly
+        run: |
+          aws s3 cp models/churn_model.pkl s3://${{env.s3_BUCKET}}/models/churn_model.pkl
+
+      - name: update inference.yaml
+        run: |
+          MODEL_URI="s3://${{env.s3_BUCKET}}/models/churn_model.pkl"
+          sed -i "s|storageUri: .*|storageUri: $MODEL_URI|g" k8s/inference.yaml
+      
+      - name: commit updated inference.yaml
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "github action"
+          git add k8s/inference.yaml
+          git commit -m "update model s3 path [skip ci]" || echo "no changes"
+          git push || echo "No changes to push"
