@@ -33,6 +33,7 @@ jobs:
 
       - name: train model
         run: |
+          mkdir -p models
           python3 train.py
 
       - name: configure aws credentials
